@@ -7,7 +7,14 @@ from urllib import parse as urlparse
 import requests
 from bs4 import BeautifulSoup
 import re
+import ssl
+import certifi
 import pandas as pd
+from htmldate import find_date
+import wget
+# import subprocess
+import glob, os
+import zipfile
 
 
 class Throttle:
@@ -39,8 +46,10 @@ def get_soup(link):
         """
     throttle = Throttle(4)
     throttle.wait(link)
-    r = requests.get(link)
-    soup = BeautifulSoup(r.text, 'html.parser')
+    #r = requests.get(link)
+    goContext = ssl.SSLContext()
+    r = urllib2.urlopen(link,context=goContext).read()
+    soup = BeautifulSoup(r, features='html.parser')
     return soup
 
 
@@ -56,19 +65,107 @@ def get_status_code(link):
     return error_code
 
 
-def find_interal_url(URL, depth=0, max_depth=0):
+def prepare_zip(path, zip_name):
+    """
+           Creates zip for all pages extracted from pdfs
+           param: directory path and name of zip
+           """
+    img_files = []
+    os.chdir(path)
+    print(path)
+    # get all the images files names in a list
+    for file in glob.glob("page_*"):
+        img_files.append(file)
+    # create zip with list of files
+    with zipfile.ZipFile(zip_name + '.zip', 'w') as zipF:
+        for files in img_files:
+            zipF.write(files, compress_type=zipfile.ZIP_DEFLATED)
+    print('Zip Created Successfully!!')
+
+
+def issuu_scraper(pdf_url, pages):
+    for page in range(1, pages + 1):
+        soup = get_soup(pdf_url)
+        # locate the image asset
+        pg_title = soup.find('meta', attrs={'property': 'og:title'})['content']
+        img_link3 = soup.find('meta', attrs={'property': 'og:image'})['content']
+        img_link2 = img_link3.replace('1.jpg', '')
+        img_link = img_link2 + str(page) + ".jpg"
+        # download image asset
+        wget.download(img_link)
+        print('\nPage {}: {}\n'.format(page, img_link))
+        with open('urls.txt', 'a') as f:
+            f.write(img_link + '\n')
+    prepare_zip(os.getcwd(), pg_title)
+    for files in glob.glob("page_*"):
+        os.remove(files)
+
+
+    """
+    # convert pages to pdf
+    params = ['convert', 'page_*', pagetitle + '.pdf']
+    subprocess.run(params)
+        
+    # collect information on the file
+    metadata = {'URL': url, 'description': soup.find('meta', attrs={'property': 'og:description'})['content'],
+                'uploaded': extract_date(pdf_url)}
+
+    upload_link_soup = soup.find('div', attrs={'class': 'PublisherInfo__name--3j27Y'})
+    #metadata['uploader_link'] = "https://issuu.com" + upload_link_soup.a['href']
+
+    #metadata['uploader'] = soup.find('a', attrs={'itemprop': 'author'}).contents[0]
+
+    metadata_out = '\n'.join({'{}: {}'.format(k, v) for k, v in metadata.items()})
+    print(metadata_out)
+
+    with open('info.txt', 'w') as f:
+        f.write(metadata_out)
+        """
+
+
+def extract_date(soup_url):
+    """
+           Return date for soup object
+           param: soup object
+           """
+    months = []
+    pat = re.compile(r"(\d{1,2}\s(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|"
+                     r"Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)((,)|(\s))\d{4})|(((Jan(?:uary)?|Feb(?:"
+                     r"ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|"
+                     r"Nov(?:ember)?|Dec(?:ember)?)\s\d{1,2}((,)|(\s))(()|(\s))\d{4})|((\d{1,2}\s(Jan(?:uary)?|Feb(?:"
+                     r"ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|"
+                     r"Nov(?:ember)?|Dec(?:ember)?)(,)\s\d{4})))")  # re.compile(r"(\d{1,2}\s\w*((,)|(\s))\d{4})|((
+    # \w*\s\
+    # d{1,2}((,)|(\s))(()|(\s))\d{4})|((\d{1,2}\s\w*(,)
+    # \s\d{4})))")
+    dates = re.findall(pat, str(soup_url))
+    dates = [j for i in dates for j in i]
+    dates = set(dates)
+    dates = list(dates)
+    if dates:
+        for i in dates:
+            if (len(i) > 8):
+                return i
+                break
+    else:
+        return None
+
+
+def find_internal_url(urlp, depth=0, max_depth=0):
     urls = []
-    soup = get_soup(URL)
+    soup = get_soup(urlp)
     a_tags = soup.find_all('a', href=True)
+    print('inside internal url')
+    print(a_tags)
     #    if URL.endswith("/"):
     #       domain = URL
     #    else:
     #       domain = "/".join(URL.split("/")[:-1])
-    domain = urlparse.urlparse(URL)
+    domain = urlparse.urlparse(urlp)
     pattern_url = domain.scheme + "://" + domain.netloc + domain.path
     pattern = re.compile(rf"{pattern_url}.*")
-    #print(domain)
-    #print(pattern_url)
+    # print(domain)
+    # print(pattern_url)
     if depth > max_depth:
         return {}
     else:
@@ -80,12 +177,10 @@ def find_interal_url(URL, depth=0, max_depth=0):
             else:
                 continue
             print("Fetching...URLs...")
-            status_dict = {}
-            status_dict["url"] = url
-            status_dict["status_code"] = get_status_code(url)
-            status_dict["timestamp"] = datetime.datetime.now()
-            status_dict["depth"] = depth + 1
-            if url not in [urls[i]["url"] for i in range(len(urls))] and re.match(pattern_url, url):
+            status_dict = {"url": url, "status_code": get_status_code(url), "timestamp": datetime.datetime.now(),
+                           "depth": depth + 1}
+            if url not in [urls[i]["url"] for i in range(len(urls))] and re.match(pattern_url, url) and \
+                    status_dict["status_code"] == 200:
                 urls.append(status_dict)
     return urls
 
@@ -94,7 +189,7 @@ def get_scrap(urls):
     scrap_df = []
     for i in range(len(urls)):
         soup = get_soup(urls[i]["url"])
-        dt = soup.find('time').get('datetime')
+        dt = extract_date(soup)  # soup.find('time').get('datetime')
         text_content = []
         for para in soup.find_all('p'):
             text_content.append(para.get_text())
@@ -108,14 +203,19 @@ def get_scrap(urls):
 
 
 if __name__ == "__main__":
-    url = "https://www.nzherald.co.nz/the-country/news/"
+    url = "https://www.agribusinessgroup.com/news"
+    #pdf_urls = "https://issuu.com/ashguardian/docs/guardian_farming_-_2021-12-18_48_pages_for_uploa"
+    #issuu_scraper(pdf_urls, 47)
+    #"""
     depth = 0
-    all_urls = find_interal_url(url, 0, 2)
+    all_urls = find_internal_url(url, 0, 2)
     if depth > 1:
         for status_dict in all_urls:
-            find_interal_url(status_dict["url"])
+            find_internal_url(status_dict["url"])
     df = pd.DataFrame(get_scrap(all_urls))
-    print(df)
+    pd.set_option("display.max_colwidth", None)
+    df.to_csv("agribusiness.csv", encoding="utf-8", index= False, header= True)
+#"""
 
 # URL = "https://www.nzherald.co.nz/the-country/"
 # r = requests.get(URL)
@@ -141,6 +241,4 @@ if __name__ == "__main__":
 ##  print("Download error", e.reason)
 ##html = None
 ## return html
-
-
 ##print(download("https://www.stuff.co.nz"))
