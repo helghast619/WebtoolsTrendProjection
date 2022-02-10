@@ -2,17 +2,13 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import datetime
 import time
-import urllib.request as urllib2
 from urllib import parse as urlparse
 import requests
 from bs4 import BeautifulSoup
 import re
 import ssl
-import certifi
 import pandas as pd
-from htmldate import find_date
 import wget
-# import subprocess
 import glob, os
 import zipfile
 
@@ -46,10 +42,11 @@ def get_soup(link):
         """
     throttle = Throttle(4)
     throttle.wait(link)
-    #r = requests.get(link)
-    goContext = ssl.SSLContext()
-    r = urllib2.urlopen(link,context=goContext).read()
-    soup = BeautifulSoup(r, features='html.parser')
+    r = requests.get(link)
+    ssl.SSLContext.verify_mode = ssl.VerifyMode.CERT_OPTIONAL
+    #goContext = ssl.SSLContext()
+    #r = urllib2.urlopen(link,context=goContext).read()
+    soup = BeautifulSoup(r.text, features='html.parser')
     return soup
 
 
@@ -83,6 +80,7 @@ def prepare_zip(path, zip_name):
     print('Zip Created Successfully!!')
 
 
+
 def issuu_scraper(pdf_url, pages):
     for page in range(1, pages + 1):
         soup = get_soup(pdf_url)
@@ -99,6 +97,7 @@ def issuu_scraper(pdf_url, pages):
     prepare_zip(os.getcwd(), pg_title)
     for files in glob.glob("page_*"):
         os.remove(files)
+
 
 
     """
@@ -203,10 +202,10 @@ def get_scrap(urls):
 
 
 if __name__ == "__main__":
-    url = "https://www.agribusinessgroup.com/news"
+    url = "https://www.foodnavigator.com/Trends/Labelling"
     #pdf_urls = "https://issuu.com/ashguardian/docs/guardian_farming_-_2021-12-18_48_pages_for_uploa"
     #issuu_scraper(pdf_urls, 47)
-    #"""
+
     depth = 0
     all_urls = find_internal_url(url, 0, 2)
     if depth > 1:
@@ -214,31 +213,12 @@ if __name__ == "__main__":
             find_internal_url(status_dict["url"])
     df = pd.DataFrame(get_scrap(all_urls))
     pd.set_option("display.max_colwidth", None)
-    df.to_csv("agribusiness.csv", encoding="utf-8", index= False, header= True)
-#"""
+    df.to_csv("foodmanufacture.csv", encoding="utf-8", index= False, header= True)
+    """
+    #goContext = ssl.SSLContext()
+    #r = urllib2.urlopen("https://farmersweekly.co.nz/s/", context=goContext)
+    session = HTMLSession()
+    r = session.get("https://farmersweekly.co.nz/s/")
+    r.html.render()
+"""
 
-# URL = "https://www.nzherald.co.nz/the-country/"
-# r = requests.get(URL)
-# soup = BeautifulSoup(r.text, 'html.parser')
-# print(soup.a)
-# for l in soup.find_all('a'):
-#   print(l.get('href'))
-
-
-# print(soup.prettify())
-
-
-# print(builtwith.parse('https://www.stuff.co.nz'))
-
-# print(whois.whois('stuff.co.nz'))
-
-
-##def download(url):
-##  print("Downloading..", url)
-##try:
-##  html = urllib2.urlopen(url).read()
-##except  urllib2.HTTPErrorProcessor as e:
-##  print("Download error", e.reason)
-##html = None
-## return html
-##print(download("https://www.stuff.co.nz"))
