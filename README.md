@@ -5,7 +5,24 @@
 
 ## Project Overview 
   
-  ![text](https://pasteboard.co/0km61EQjTzDw.png)
+![0km61EQjTzDw](https://user-images.githubusercontent.com/74321635/153944298-5e3999c3-7d80-45a9-8008-f93db62758b2.png)
 
-## Basic pre-requisite for the above scripts to run
-  - 
+
+## Data Source
+| Future Ingredients | Healthy Food |Packaging / Labels | Sustainable/Regenerative Farming |
+|------|------|-----|-----|
+| Nzherald | Farmersweekly | | Gisborneherald |
+| Coastandcountry| Agritechnz| | Localmatters |
+| Sunlive| | | Theensign |
+| Dairynz| | | Agscience |
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Table: NZ Data Source
+
+| Future Ingredients | Healthy Food |Packaging / Labels | Sustainable/Regenerative Farming |
+|------|------|-----|-----|
+| Agribusinessglobal | Farmweekly | Euractiv | Agriland |
+| Agrinews | Veganomist | Azom | Agweb |
+| TheHindu | Foodmanufacturer | | Euractiv |
+| TheWest | | | Europeanscientist |
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Table: Global Data Source
